@@ -1,12 +1,1 @@
-1.	Use terraform to manage resources in SUBSCRIPTION to improve provisioning time and maintain accurate estate management 
-a.	Week 4: Identify and document all existing Azure resources.
-b.	Week 8 Create Terraform templates for deployed resources.
-c.	Week 12 Migrate the provisioning of new resources entirely to Terraform.
-2.	Migrate services from legacy infrastructure to modern IT platform; by utilizing an Azure managed platform or a newer Windows server 
-a.	Conduct an assessment of the existing environment and identify app/services and dependencies 
-b.	Migrate services in batches to minimize downtime. Validate each migrated service before proceeding to the next
-c.	decommission the legacy infrastructure
-3.	Cross-train with team members to gain proficiency in the normal activities of the DBA team
-a.	Week 4: Identify key skills to learn and create a cross-training schedule.
-b.	Spend 2-3 hours of cross training with each member of the DBA team
-c.	Perform a standard task/procedure normally performed by the DBA team
+
