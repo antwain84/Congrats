@@ -1,1 +1,56 @@
+# Log in to Azure
+Connect-AzAccount
+
+# Get all subscriptions
+$subscriptions = Get-AzSubscription
+
+# Define output CSV file path
+$outputFile = "C:\Path\To\Output\AzureTags.csv"
+
+# Initialize an array to store results
+$results = @()
+
+# Loop through each subscription
+foreach ($subscription in $subscriptions) {
+    Set-AzContext -SubscriptionId $subscription.Id
+
+    # Get all resource groups in the subscription
+    $resourceGroups = Get-AzResourceGroup
+
+    foreach ($rg in $resourceGroups) {
+        # Get Resource Group Tags
+        $rgTags = if ($rg.Tags) { ($rg.Tags | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "; " } else { "No Tags" }
+
+        # Add Resource Group entry
+        $results += [PSCustomObject]@{
+            Subscription  = $subscription.Name
+            ResourceType  = "Resource Group"
+            ResourceGroup = $rg.ResourceGroupName
+            ResourceName  = $rg.ResourceGroupName
+            Tags          = $rgTags
+        }
+
+        # Get all resources inside the resource group
+        $resources = Get-AzResource -ResourceGroupName $rg.ResourceGroupName
+
+        foreach ($resource in $resources) {
+            # Get Resource Tags
+            $resTags = if ($resource.Tags) { ($resource.Tags | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "; " } else { "No Tags" }
+
+            # Add Resource entry
+            $results += [PSCustomObject]@{
+                Subscription  = $subscription.Name
+                ResourceType  = $resource.Type
+                ResourceGroup = $rg.ResourceGroupName
+                ResourceName  = $resource.Name
+                Tags          = $resTags
+            }
+        }
+    }
+}
+
+# Export results to CSV
+$results | Export-Csv -Path $outputFile -NoTypeInformation -Encoding UTF8
+
+Write-Output "Azure Resource Tags exported to $outputFile"
 
