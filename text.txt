@@ -1,56 +1,34 @@
-# Log in to Azure
-Connect-AzAccount
+# Define paths
+$destDir = "D:\DestinationFolder"  # Update with your destination folder
+$fileListPath = "C:\path\to\filelist.txt"  # Update with your file list path
+$logFilePath = "C:\path\to\robocopy_log.txt"  # Update log file path
 
-# Get all subscriptions
-$subscriptions = Get-AzSubscription
+# Ensure the destination directory exists
+if (!(Test-Path $destDir)) {
+    New-Item -ItemType Directory -Path $destDir | Out-Null
+}
 
-# Define output CSV file path
-$outputFile = "C:\Path\To\Output\AzureTags.csv"
+# Read the file list and copy each file while preserving structure
+Get-Content $fileListPath | ForEach-Object {
+    $sourceFilePath = $_.Trim()
+    
+    if ($sourceFilePath -ne "" -and (Test-Path $sourceFilePath)) {
+        $sourceRoot = Split-Path -Path (Get-Content $fileListPath | Select-Object -First 1) -Parent  # Get common root
+        $relativePath = $sourceFilePath.Replace($sourceRoot, "").TrimStart("\")  # Extract relative path
+        $destFilePath = Join-Path -Path $destDir -ChildPath $relativePath
+        $destFileDir = Split-Path -Path $destFilePath -Parent
 
-# Initialize an array to store results
-$results = @()
-
-# Loop through each subscription
-foreach ($subscription in $subscriptions) {
-    Set-AzContext -SubscriptionId $subscription.Id
-
-    # Get all resource groups in the subscription
-    $resourceGroups = Get-AzResourceGroup
-
-    foreach ($rg in $resourceGroups) {
-        # Get Resource Group Tags
-        $rgTags = if ($rg.Tags) { ($rg.Tags | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "; " } else { "No Tags" }
-
-        # Add Resource Group entry
-        $results += [PSCustomObject]@{
-            Subscription  = $subscription.Name
-            ResourceType  = "Resource Group"
-            ResourceGroup = $rg.ResourceGroupName
-            ResourceName  = $rg.ResourceGroupName
-            Tags          = $rgTags
+        # Ensure the destination subdirectory exists
+        if (!(Test-Path $destFileDir)) {
+            New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
         }
 
-        # Get all resources inside the resource group
-        $resources = Get-AzResource -ResourceGroupName $rg.ResourceGroupName
-
-        foreach ($resource in $resources) {
-            # Get Resource Tags
-            $resTags = if ($resource.Tags) { ($resource.Tags | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "; " } else { "No Tags" }
-
-            # Add Resource entry
-            $results += [PSCustomObject]@{
-                Subscription  = $subscription.Name
-                ResourceType  = $resource.Type
-                ResourceGroup = $rg.ResourceGroupName
-                ResourceName  = $resource.Name
-                Tags          = $resTags
-            }
-        }
+        # Run Robocopy to copy the file while retaining permissions
+        Robocopy (Split-Path -Path $sourceFilePath -Parent) $destFileDir (Split-Path -Path $sourceFilePath -Leaf) /COPYALL /SEC /LOG+:$logFilePath /NP /R:2 /W:2 /Z
+        Write-Output "Copied: $sourceFilePath -> $destFilePath"
+    } else {
+        Write-Output "File not found: $sourceFilePath" | Out-File -Append -FilePath $logFilePath
     }
 }
 
-# Export results to CSV
-$results | Export-Csv -Path $outputFile -NoTypeInformation -Encoding UTF8
-
-Write-Output "Azure Resource Tags exported to $outputFile"
-
+Write-Output "Robocopy operation completed. Check log: $logFilePath"
