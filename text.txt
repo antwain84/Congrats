@@ -3,18 +3,21 @@ $destDir = "D:\DestinationFolder"  # Update with your destination folder
 $fileListPath = "C:\path\to\filelist.txt"  # Update with your file list path
 $logFilePath = "C:\path\to\robocopy_log.txt"  # Update log file path
 
+# Get the common root directory from the first file in the list
+$sourceRoot = Split-Path -Path (Get-Content $fileListPath | Select-Object -First 1) -Parent  
+
 # Ensure the destination directory exists
 if (!(Test-Path $destDir)) {
     New-Item -ItemType Directory -Path $destDir | Out-Null
 }
 
-# Read the file list and copy each file while preserving structure
+# Read the file list and copy each file while preserving folder structure and timestamps
 Get-Content $fileListPath | ForEach-Object {
     $sourceFilePath = $_.Trim()
     
     if ($sourceFilePath -ne "" -and (Test-Path $sourceFilePath)) {
-        $sourceRoot = Split-Path -Path (Get-Content $fileListPath | Select-Object -First 1) -Parent  # Get common root
-        $relativePath = $sourceFilePath.Replace($sourceRoot, "").TrimStart("\")  # Extract relative path
+        # Extract relative path by removing the source root from the full path
+        $relativePath = $sourceFilePath.Replace($sourceRoot, "").TrimStart("\")  
         $destFilePath = Join-Path -Path $destDir -ChildPath $relativePath
         $destFileDir = Split-Path -Path $destFilePath -Parent
 
@@ -23,8 +26,8 @@ Get-Content $fileListPath | ForEach-Object {
             New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
         }
 
-        # Run Robocopy to copy the file while retaining permissions
-        Robocopy (Split-Path -Path $sourceFilePath -Parent) $destFileDir (Split-Path -Path $sourceFilePath -Leaf) /COPYALL /SEC /LOG+:$logFilePath /NP /R:2 /W:2 /Z
+        # Run Robocopy to copy the file while retaining permissions and timestamps
+        Robocopy (Split-Path -Path $sourceFilePath -Parent) $destFileDir (Split-Path -Path $sourceFilePath -Leaf) /COPYALL /SEC /DCOPY:T /LOG+:$logFilePath /NP /R:2 /W:2 /Z
         Write-Output "Copied: $sourceFilePath -> $destFilePath"
     } else {
         Write-Output "File not found: $sourceFilePath" | Out-File -Append -FilePath $logFilePath
