@@ -1,41 +1,33 @@
-# Define source and destination directories
-$sourceDir = "C:\SourceFolder"   # Update this with your source folder
-$destDir = "D:\DestinationFolder"  # Update this with your destination folder
-$logFilePath = "C:\path\to\file_copy_log.txt"  # Update log file path
+# Define paths
+$sourceDir = "C:\SourceDirectory"  # Update with your source directory
+$destDir = "D:\DestinationDirectory"  # Update with your destination directory
+$logFilePath = "C:\path\to\sync_log.txt"  # Update with your log file path
 
 # Ensure the log file exists
 if (!(Test-Path $logFilePath)) {
     New-Item -ItemType File -Path $logFilePath | Out-Null
 }
 
-# Get list of files from both directories
-$sourceFiles = Get-ChildItem -Path $sourceDir -Recurse | Where-Object { $_.PSIsContainer -eq $false }
-$destFiles = Get-ChildItem -Path $destDir -Recurse | Where-Object { $_.PSIsContainer -eq $false }
+# Get list of files and folders in Source and Destination
+$sourceFiles = Get-ChildItem -Path $sourceDir -Recurse
+$destFiles = Get-ChildItem -Path $destDir -Recurse
 
-# Create a hashtable of destination files for quick lookup
-$destFileHash = @{}
-foreach ($file in $destFiles) {
-    $relativePath = $file.FullName.Replace($destDir, "").TrimStart("\")
-    $destFileHash[$relativePath] = $file.FullName
-}
-
-# Loop through source files and copy missing ones
+# Compare and copy missing files and folders
 foreach ($file in $sourceFiles) {
     $relativePath = $file.FullName.Replace($sourceDir, "").TrimStart("\")
     $destFilePath = Join-Path -Path $destDir -ChildPath $relativePath
-    $destFileDir = Split-Path -Path $destFilePath -Parent
 
-    # If the file is missing in the destination, copy it
-    if (-not $destFileHash.ContainsKey($relativePath)) {
-        # Ensure the destination subdirectory exists
-        if (!(Test-Path $destFileDir)) {
-            New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
+    if (!(Test-Path $destFilePath)) {
+        if ($file.PSIsContainer) {
+            # Create missing directories
+            New-Item -ItemType Directory -Path $destFilePath -Force | Out-Null
+            "Created folder: $destFilePath" | Out-File -Append -FilePath $logFilePath
+        } else {
+            # Copy missing files and retain attributes
+            Copy-Item -Path $file.FullName -Destination $destFilePath -Force
+            "Copied file: $file.FullName -> $destFilePath" | Out-File -Append -FilePath $logFilePath
         }
-
-        # Copy the file while retaining timestamps and attributes
-        Copy-Item -Path $file.FullName -Destination $destFilePath -Force
-        Write-Output "Copied: $file.FullName -> $destFilePath" | Out-File -Append -FilePath $logFilePath
     }
 }
 
-Write-Output "File comparison and copying completed. Check log: $logFilePath"
+Write-Output "File sync completed. Check log: $logFilePath"
