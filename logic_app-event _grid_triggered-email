@@ -1,0 +1,58 @@
+Step 1 
+Go to the Azure Portal
+Create a new Logic App (Consumption)
+Identify>System assigned>on>Save>Yes>Assign role>Add role assignment>Scope>Storage>Resource>pick storage account>Role>choose role>Save
+In the logic app designer>add a trigger>choose "When an HTTP request is received"
+Define this JSON schema in the trigger to parse Event Grid data:
+    {
+      "type": "object",
+      "properties": {
+    	"data": {
+      	"type": "object",
+      	"properties": {
+        	"url": { "type": "string" },
+        	"contentLength": { "type": "number" },
+        	"api": { "type": "string" },
+        	"blobType": { "type": "string" },
+        	"eTag": { "type": "string" },
+        	"lastModified": { "type": "string" }
+      	},
+      	"required": ["url", "contentLength", "lastModified"]
+    	},
+    	"eventType": { "type": "string" }
+      }
+    }
+Click +>Add an action> choose>Outlook / Gmail / SMTP> Send an email
+Compose the message using dynamic content:
+  -   	In subject line add: New File uploaded for [storage account]
+        BETTER: New triggerBody()[0]?['eventType']  for storage account: [STORAGE ACCOUNT]
+  -   	In the body
+              For each field:
+              Click the body field, then click “Add dynamic content”
+              At the bottom of the popup, select “Expression”
+              Paste each expression into the expression editor
+              Click OK ✅ to insert the evaluated result
+              Label	Expression to Use
+                  File Path:	triggerBody()[0]?['data']?['url']
+                  File Size:	triggerBody()[0]?['data']?['contentLength']
+                  Last Modified:	triggerBody()[0]?['data']?['lastModified']
+                  File Name:	last(split(triggerBody()[0]?['data']?['url'], '/'))
+                  Event:		triggerBody()[0]?['eventType']
+
+    <upload 1>
+    <upload 2>
+
+Event Grid
+Step 2: Create Event Grid Subscription
+  Go to the Storage Account → Events
+  Click + Event Subscription
+  Set:
+      Event Type: Blob Created
+      Endpoint Type: Webhook
+      Endpoint: Paste the Logic App HTTP URL
+  Scope: Entire Storage account or specific container
+  Name the subscription → Click Create
+<upload 3>
+
+
+
